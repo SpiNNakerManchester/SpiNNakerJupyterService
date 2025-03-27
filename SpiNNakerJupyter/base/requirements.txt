@@ -1,0 +1,10 @@
+# ipympl
+# ipywidgets
+# jupyterlab
+jupyterlab-git
+# jupyterlab-system-monitor
+# jupyterlab-topbar
+# jupyterlab-widgets
+# nbdime
+nbgitpuller
+# nbresuse

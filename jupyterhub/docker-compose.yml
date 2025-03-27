@@ -1,0 +1,44 @@
+#version: "3"
+
+services:
+  jupyterhub:
+    build:
+      context: .
+      dockerfile: Dockerfile.jupyterhub
+      args:
+        JUPYTERHUB_VERSION: latest
+    restart: always
+    image: jupyterhub
+    container_name: jupyterhub
+    networks:
+      - jupyterhub_network
+    volumes:
+      - "/localhome/jupyteruser/SpiNNakerJupyterService/jupyterhub/jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock:rw"
+      - "jupyterhub-data:/data:rw"
+      - "/localhome/jupyteruser/work:/work:rw"
+    ports:
+      - 8000:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      JUPYTERHUB_ADMIN: rowley
+      DOCKER_NETWORK_NAME: jupyterhub_network
+      # JupyterHub will spawn this Notebook image for users
+      DOCKER_NOTEBOOK_IMAGE: spinnaker_jupyter:latest
+      # Notebook directory inside user image
+      DOCKER_NOTEBOOK_DIR: /home/jovyan/work
+      CONFIGPROXY_AUTH_TOKEN: ${CONFIGPROXY_AUTH_TOKEN}
+      JUPYTERHUB_CRYPT_KEY: ${JUPYTERHUB_CRYPT_KEY}
+    # Ensure that we execute on a Swarm manager
+    # deploy:
+    #   replicas: 1
+    #   placement:
+    #     constraints:
+    #       - node.role == manager
+
+volumes:
+  jupyterhub-data:
+networks:
+  jupyterhub_network:
+    name: jupyterhub_network

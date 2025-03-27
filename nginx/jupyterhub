@@ -1,0 +1,31 @@
+server {
+    listen unix:/run/nginx.sock;
+
+    # Security headers
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header X-Frame-Options DENY always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Content-Security-Policy "default-src 'self' *.ebrains.eu; script-src 'self' *.ebrains.eu 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: 'unsafe-inline'" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000/;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        # Upgrade cookies to allow working in IFRAME
+        proxy_cookie_flags ~ secure samesite=none;
+        # proxy_cookie_path $uri "$uri; secure; SameSite=None";
+
+        # websocket headers
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+    }
+
+    # Managing requests to verify letsencrypt host
+    location ~ /.well-known {
+        allow all;
+    }
+}

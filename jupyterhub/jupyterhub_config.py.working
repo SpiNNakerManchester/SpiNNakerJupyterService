@@ -1,0 +1,83 @@
+import os
+
+###########
+# Spawner #
+###########
+
+# Spawn single-user servers as Docker containers
+c.JupyterHub.spawner_class = "dockerspawner.DockerSpawner"
+
+# Spawn containers from this image
+c.DockerSpawner.image = os.environ["DOCKER_NOTEBOOK_IMAGE"]
+
+# Set up Docker network
+c.DockerSpawner.use_internal_ip = True
+c.DockerSpawner.network_name = os.environ['DOCKER_NETWORK_NAME']
+
+# Set up Notebook directory
+notebook_dir = os.environ.get("DOCKER_NOTEBOOK_DIR", "/home/jovyan/work")
+c.DockerSpawner.notebook_dir = "/home/jovyan/"
+c.DockerSpawner.volumes = {
+    "/localhome/jupyteruser/work/{username}/": notebook_dir
+}
+
+# Delete containers when user logs out
+c.DockerSpawner.remove = True
+
+# For debugging arguments passed to spawned containers
+c.DockerSpawner.debug = True
+
+# def auth_state_hook(spawner, auth_state):
+#    spawner.log.info(f"Auth: {auth_state}")#
+#c.DockerSpawner.auth_state_hook = auth_state_hook
+
+async def pre_spawn(spawner):
+    username = spawner.user.name
+    spawner.log.info(f"Making folder for {username}")
+    workdir = f"/work/{username}/"
+    os.makedirs(workdir, exist_ok=True)
+    os.chown(workdir, 1000, 100)
+    auth_state = await spawner.user.get_auth_state()
+    spawner.log.info(f"Made folder, auth state = {auth_state}")
+
+c.DockerSpawner.pre_spawn_hook = pre_spawn
+
+
+##################
+# Authentication #
+##################
+
+# Use OAuth2
+c.JupyterHub.authenticator_class = "generic-oauth"
+
+# Details of setup for the authentication
+c.OAuthenticator.oauth_callback_url = 'https://sands.cs.man.ac.uk/hub/oauth_callback'
+c.OAuthenticator.client_id = 'spinnaker-jupyter-ebrains'
+c.OAuthenticator.client_secret = '1fdaf78b-cb2e-4c3e-9f67-19dff013f937'
+c.OAuthenticator.scope = ['openid', 'profile', 'clb.drive:read', 'clb.drive:write', 'collab.drive', 'email']
+c.OAuthenticator.token_url = 'https://iam.ebrains.eu/auth/realms/hbp/protocol/openid-connect/token'
+c.OAuthenticator.userdata_url = 'https://iam.ebrains.eu/auth/realms/hbp/protocol/openid-connect/userinfo'
+c.OAuthenticator.authorize_url = 'https://iam.ebrains.eu/auth/realms/hbp/protocol/openid-connect/auth'
+c.OAuthenticator.username_claim = 'preferred_username'
+c.OAuthenticator.login_service = 'EBRAINS Credentials'
+c.OAuthenticator.enable_auth_state = True
+# c.OAuthenticator.drive_url = 'https://drive.ebrains.eu'
+
+# Allow all signed-up users to login
+c.Authenticator.allow_all = True
+
+# Set the administrator user(s)
+admin = os.environ.get("JUPYTERHUB_ADMIN")
+if admin:
+    c.Authenticator.admin_users = [admin]
+
+#########
+# Other #
+#########
+
+# Persist hub data on volume mounted inside container
+c.JupyterHub.cookie_secret_file = "/data/jupyterhub_cookie_secret"
+c.JupyterHub.db_url = "sqlite:////data/jupyterhub.sqlite"
+
+c.JupyterHub.hub_ip = "jupyterhub"
+c.JupyterHub.hub_port = 8080
