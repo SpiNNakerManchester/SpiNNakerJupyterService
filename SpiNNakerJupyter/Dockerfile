@@ -53,6 +53,7 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 # RUN jupyter lab build
 # RUN jupyter notebook --generate-config
 # RUN mkdir -p $HOME/.ipython/profile_default/startup/
+RUN jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
 
 # disable core dumps
 RUN echo "* - core 0" >> /etc/security/limits.conf
