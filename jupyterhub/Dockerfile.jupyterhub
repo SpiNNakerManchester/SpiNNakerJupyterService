@@ -11,6 +11,7 @@ RUN python3 -m pip install --no-cache-dir \
     dockerspawner \
     oauthenticator \
     git+https://github.com/g2nb/multiauthenticator.git \
-    jupyterhub-nativeauthenticator
+    jupyterhub-nativeauthenticator \
+    jupyterhub-idle-culler
 
 CMD ["jupyterhub", "-f", "/srv/jupyterhub/jupyterhub_config.py"]

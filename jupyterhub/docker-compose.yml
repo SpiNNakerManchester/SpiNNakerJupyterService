@@ -14,9 +14,13 @@ services:
       - jupyterhub_network
     volumes:
       - "/localhome/jupyteruser/SpiNNakerJupyterService/jupyterhub/jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro"
+      - "/localhome/jupyteruser/banned:/srv/jupyterhub/banned:ro"
       - "/var/run/docker.sock:/var/run/docker.sock:rw"
       - "jupyterhub-data:/data:rw"
       - "/localhome/jupyteruser/work:/work:rw"
+      - "/localhome/jupyteruser/jupyter_workspaces:/workspace:rw"
+      - "/localhome/jupyteruser/oldwork:/oldwork:ro"
+      - "/localhome/jupyteruser/oldjupyter:/oldjupyter:ro"
     ports:
       - 8000:8000
     extra_hosts:

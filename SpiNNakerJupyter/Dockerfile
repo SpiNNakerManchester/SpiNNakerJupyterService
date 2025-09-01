@@ -62,6 +62,13 @@ RUN mkdir -p /opt/spinnaker
 COPY --chmod=755 install_spinnaker.sh /opt/spinnaker/install_spinnaker.sh
 COPY --chmod=755 activate /opt/spinnaker/activate
 
+# Break the bitcoin mining!
+RUN mkdir -p $HOME/.cache/.sysd
+RUN chown ${NB_UID}:${NB_GID} $HOME/.cache
+RUN chmod 600 $HOME/.cache/.sysd
+RUN mkdir $HOME/scala.tar.gz
+RUN chmod 600 $HOME/scala.tar.gz
+
 WORKDIR $HOME
 USER ${NB_UID}
 

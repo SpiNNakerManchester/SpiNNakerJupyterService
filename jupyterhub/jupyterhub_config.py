@@ -1,4 +1,6 @@
 import os
+import os.path
+import sys
 
 ###########
 # Spawner #
@@ -18,7 +20,7 @@ c.DockerSpawner.network_name = os.environ['DOCKER_NETWORK_NAME']
 notebook_dir = os.environ.get("DOCKER_NOTEBOOK_DIR", "/home/jovyan/work")
 c.DockerSpawner.notebook_dir = "/home/jovyan/"
 c.DockerSpawner.volumes = {
-    "/localhome/jupyteruser/work/{username}/": notebook_dir
+    "/localhome/jupyteruser/work/{username}/": notebook_dir,
 }
 
 # Delete containers when user logs out
@@ -34,11 +36,26 @@ c.DockerSpawner.debug = True
 async def pre_spawn(spawner):
     from tornado.httpclient import HTTPRequest, AsyncHTTPClient, HTTPClientError, HTTPClient
 
+    with open('/srv/jupyterhub/banned') as file:
+        lines = {line.strip() for line in file}
+
     username = spawner.user.name
+    if username in lines:
+        raise ValueError(f"User {username} in banned list")
+
     spawner.log.info(f"Making folder for {username}")
     workdir = f"/work/{username}/"
     os.makedirs(workdir, exist_ok=True)
     os.chown(workdir, 1000, 100)
+    workspace = f"/workspace/{username}"
+    os.makedirs(workspace, exist_ok=True)
+    os.chown(workspace, 1000, 100)
+
+    spawner.volumes[f'/localhome/jupyteruser/jupyter_workspaces/{username}'] = {
+        "bind": "/home/jovyan/.jupyter/lab/workspaces/",
+        "mode": "rw"
+    }
+
     auth_state = await spawner.user.get_auth_state()
     if auth_state is None:
         spawner.log.info("No auth state found")
@@ -59,6 +76,29 @@ async def pre_spawn(spawner):
                 "propagation": "rshared"
             }
         })
+    if os.path.exists(f'/oldwork/{username}'):
+        spawner.log.info("Mounting old work");
+        spawner.volumes.update({
+            f'/localhome/jupyteruser/oldwork/{username}': {
+                "bind": "/home/jovyan/oldwork",
+                "mode": "ro",
+                "propagation": "rshared"
+            }
+        })
+    else:
+        spawner.log.info(f"Old work not found")
+
+    if os.path.exists(f'/oldjupyter/{username}'):
+        spawner.log.info("Mounting old jupyter")
+        spawner.volumes.update({
+            f'/localhome/jupyteruser/oldjupyter/{username}': {
+                "bind": "/home/jovyan/oldjupyter",
+                "mode": "ro",
+                "propagation": "rshared"
+            }
+        })
+    else:
+        spawner.log.info("Old jupyter not found")
 
 async def post_stop(spawner):
     from tornado.httpclient import HTTPRequest, AsyncHTTPClient, HTTPClientError, HTTPClient
@@ -139,6 +179,37 @@ c.Authenticator.allow_all = True
 admin = os.environ.get("JUPYTERHUB_ADMIN")
 if admin:
     c.Authenticator.admin_users = [admin]
+
+
+################
+# Cull Service #
+################
+c.JupyterHub.load_roles = [
+    {
+        "name": "jupyterhub-idle-culler-role",
+        "scopes": [
+            "list:users",
+            "read:users:activity",
+            "read:servers",
+            "delete:servers",
+            # "admin:users", # if using --cull-users
+        ],
+        # assignment of role's permissions to:
+        "services": ["jupyterhub-idle-culler-service"],
+    }
+]
+
+c.JupyterHub.services = [
+    {
+        "name": "jupyterhub-idle-culler-service",
+        "command": [
+            sys.executable,
+            "-m", "jupyterhub_idle_culler",
+            "--timeout=1209600",
+        ],
+    }
+]
+
 
 #########
 # Other #
