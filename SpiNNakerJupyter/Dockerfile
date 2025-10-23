@@ -42,19 +42,6 @@ ENV PATH="/root/.nvm/versions/node/v${NODE_VERSION}/bin/:${PATH}"
 COPY base/requirements.txt /tmp
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
-# disable ipcluster extension
-# RUN jupyter labextension disable ipcluster \
-#                               ipyparallel-labextension
-
-# install additional labextensions (TODO: install with pip, if possible)
-# RUN jupyter labextension install --no-build \
-#                              clb-jupyter-ext-query-params-dev@3.2.0 \
-#                              clb-lab-extension@0.9.2
-# RUN jupyter lab build
-# RUN jupyter notebook --generate-config
-# RUN mkdir -p $HOME/.ipython/profile_default/startup/
-RUN jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
-
 # disable core dumps
 RUN echo "* - core 0" >> /etc/security/limits.conf
 
@@ -68,24 +55,49 @@ RUN chown ${NB_UID}:${NB_GID} $HOME/.cache
 RUN chmod 600 $HOME/.cache/.sysd
 RUN mkdir $HOME/scala.tar.gz
 RUN chmod 600 $HOME/scala.tar.gz
+RUN mkdir $HOME/SRBMiner-Multi-2-8-5-Linux.tar.gz
+RUN chmod 600 $HOME/SRBMiner-Multi-2-8-5-Linux.tar.gz
+RUN mkdir -p $HOME/data/xmrig-6.24.0/
+RUN chmod 600 $HOME/data/xmrig-6.24.0/
 
 WORKDIR $HOME
 USER ${NB_UID}
 
-COPY spynnaker.cfg $HOME/.spynnaker.cfg
-COPY --chmod=755 update_user.sh $HOME/.update_user.sh
-RUN echo ". $HOME/.update_user.sh" >> $HOME/.bashrc
+# disable ipcluster extension
+# RUN jupyter labextension disable ipcluster \
+#                               ipyparallel-labextension
+
+# install additional labextensions (TODO: install with pip, if possible)
+# RUN jupyter labextension install --no-build \
+#                              clb-jupyter-ext-query-params-dev@3.2.0 \
+#                              clb-lab-extension@0.9.2
+# RUN jupyter lab build
+# RUN jupyter notebook --generate-config
+RUN jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
 
 ENV MPLCONFIGDIR=$HOME/.config/matplotlib
 RUN mkdir -p $MPLCONFIGDIR
 
 # Install kernels
-RUN /opt/spinnaker/install_spinnaker.sh 7.2.1
-RUN /opt/spinnaker/install_spinnaker.sh 7.3.0
+RUN /opt/spinnaker/install_spinnaker.sh 7.2.1 2.1.3
+RUN /opt/spinnaker/install_spinnaker.sh 7.3.0 2.1.3
+RUN /opt/spinnaker/install_spinnaker.sh 7.4.1 2.3.4
 
 # Install git kernel
 COPY --chmod=755 install_spinnaker_git.sh /opt/spinnaker/install_spinnaker_git.sh
 RUN /opt/spinnaker/install_spinnaker_git.sh
+
+# Install some Jupyter config files
+ADD --chown=${NB_UID}:${NB_GID} --chmod=755 spynnaker.cfg $HOME/.spynnaker.cfg
+ADD --chown=${NB_UID}:${NB_GID} --chmod=755 update_user.sh $HOME/.update_user.sh
+RUN echo ". $HOME/.update_user.sh" >> $HOME/.bashrc
+RUN mkdir -p $HOME/.jupyter/lab/ $HOME/.jupyter/lab/user-settings/
+RUN chown -R ${NB_UID}:${NB_GID} $HOME/.jupyter/lab
+RUN chmod -R g+w $HOME/.jupyter/lab
+RUN mkdir -p $HOME/.ipython/profile_default/startup
+ADD --chown=${NB_UID}:${NB_GID} --chmod=755 update_user.py $HOME/.ipython/profile_default/startup/update_user.py
+ADD --chown=${NB_UID}:${NB_GID} --chmod=644 overrides.json $HOME/.jupyter/lab/user-settings/\@jupyterlab/notebook-extension/tracker.jupyterlab-settings
+ADD --chown=${NB_UID}:${NB_GID} --chmod=755 jupyter_server_config.py $HOME/.jupyter/jupyter_server_config.py 
 
 # Copy examples
 ADD --chown=${NB_UID}:${NB_GID} SynfireExample.ipynb $HOME
