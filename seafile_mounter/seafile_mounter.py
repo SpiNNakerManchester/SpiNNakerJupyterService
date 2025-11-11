@@ -50,6 +50,11 @@ async def __get_drive_token(token):
         print("Failed to obtain drive token or mount drive.\n"
               f"Exception: {e}")
 
+def check_path_safe(base_path, check_path):
+    abs_base = os.path.abspath(base_path)
+    abs_check = os.path.abspath(check_path)
+    return os.path.commonprefix([abs_base, abs_check]) == abs_base
+
 
 @app.route("/prepare/<username>")
 async def prepare(username):
@@ -63,6 +68,9 @@ async def prepare(username):
         return "Missing token", 500
 
     user_drive_mnt = os.path.join(__mount_dir, username)
+    if not check_path_safe(__mount_dir, user_drive_mnt):
+        app.logger.error("Invalid mount path for {}".format(username))
+        return "Invalid mount path", 500
 
     # Unmount if the directory exists (ignore errors)
     try:
@@ -75,6 +83,9 @@ async def prepare(username):
     try:
         # Make directories to do the mounting
         user_drive_data = os.path.join(__data_dir, username)
+        if not check_path_safe(__data_dir, user_drive_data):
+            app.logger.error("Invalid data path for {}".format(username))
+            return "Invalid data path", 500
         __mkdir(user_drive_data)
         __mkdir(user_drive_mnt)
 
@@ -110,7 +121,13 @@ async def mount(username):
 
     try:
         user_drive_mnt = os.path.join(__mount_dir, username)
+        if not check_path_safe(__mount_dir, user_drive_mnt):
+            app.logger.error("Invalid mount path for {}".format(username))
+            return "Invalid mount path", 500
         user_drive_data = os.path.join(__data_dir, username)
+        if not check_path_safe(__data_dir, user_drive_data):
+            app.logger.error("Invalid data path for {}".format(username))
+            return "Invalid data path", 500
         user_drive_cfg = os.path.join(user_drive_data, "seadrive.conf")
         user_drive_data_folder = os.path.join(user_drive_data, "data")
 
@@ -142,6 +159,9 @@ def unmount(username):
     # Unmount using fusermount
     app.logger.info("Unmounting for {} using fusermount".format(username))
     user_drive_mnt = os.path.join(__mount_dir, username)
+    if not check_path_safe(__mount_dir, user_drive_mnt):
+        app.logger.error("Invalid mount path for {}".format(username))
+        return "Invalid mount path", 500
     subprocess.run(["fusermount", "-u", user_drive_mnt])
 
     # If the process was started here, stop it now
@@ -156,6 +176,9 @@ def unmount(username):
         # And delete everything (only caches anyway)
         # user_drive_mnt = os.path.join(__mount_dir, username)
         user_drive_data = os.path.join(__data_dir, username)
+        if not check_path_safe(__data_dir, user_drive_data):
+            app.logger.error("Invalid data path for {}".format(username))
+            return "Invalid data path", 500
         try:
             # shutil.rmtree(user_drive_mnt)
             shutil.rmtree(user_drive_data)
@@ -203,4 +226,3 @@ if not isfile(__seadrive_bin):
     raise ValueError(f"Seadrive client binary {__seadrive_bin} must be an existing file")
 
 app.run(host="0.0.0.0", port=args.port)
-
