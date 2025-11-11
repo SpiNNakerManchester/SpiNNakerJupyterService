@@ -4,7 +4,6 @@ from os.path import isdir, isfile
 import subprocess
 from configparser import ConfigParser
 from flask import request
-import traceback
 import signal
 import argparse
 import shutil
@@ -102,7 +101,6 @@ async def prepare(username):
         app.logger.exception("Error mounting for {}".format(username))
         return {
             "result": False,
-            "error": traceback.format_exc()
         }, 500
 
     return {"result": True}
@@ -146,7 +144,6 @@ async def mount(username):
         app.logger.exception("Error mounting for {}".format(username))
         return {
             "result": False,
-            "error": traceback.format_exc()
         }, 500
 
     return {"result": True}
