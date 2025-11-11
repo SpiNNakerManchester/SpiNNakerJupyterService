@@ -49,10 +49,11 @@ async def __get_drive_token(token):
         print("Failed to obtain drive token or mount drive.\n"
               f"Exception: {e}")
 
+
 def check_path_safe(base_path, check_path):
-    abs_base = os.path.abspath(base_path)
-    abs_check = os.path.abspath(check_path)
-    return os.path.commonprefix([abs_base, abs_check]) == abs_base
+    abs_base = os.path.normpath(base_path)
+    abs_check = os.path.normpath(check_path)
+    return abs_check.startswith(abs_base)
 
 
 @app.route("/prepare/<username>")
@@ -66,7 +67,7 @@ async def prepare(username):
         app.logger.error("No token for {}".format(username))
         return "Missing token", 500
 
-    user_drive_mnt = os.path.join(__mount_dir, username)
+    user_drive_mnt = os.path.normpath(os.path.join(__mount_dir, username))
     if not check_path_safe(__mount_dir, user_drive_mnt):
         app.logger.error("Invalid mount path for {}".format(username))
         return "Invalid mount path", 500
@@ -81,7 +82,7 @@ async def prepare(username):
 
     try:
         # Make directories to do the mounting
-        user_drive_data = os.path.join(__data_dir, username)
+        user_drive_data = os.path.normpath(os.path.join(__data_dir, username))
         if not check_path_safe(__data_dir, user_drive_data):
             app.logger.error("Invalid data path for {}".format(username))
             return "Invalid data path", 500
@@ -89,7 +90,8 @@ async def prepare(username):
         __mkdir(user_drive_mnt)
 
         # Write the config for mounting the drive
-        user_drive_cfg = os.path.join(user_drive_data, "seadrive.conf")
+        user_drive_cfg = os.path.normpath(
+            os.path.join(user_drive_data, "seadrive.conf"))
         config = ConfigParser()
         config.read(__default_drive_config)
         config['account']['username'] = username
@@ -118,16 +120,18 @@ async def mount(username):
     await prepare(username)
 
     try:
-        user_drive_mnt = os.path.join(__mount_dir, username)
+        user_drive_mnt = os.path.normpath(os.path.join(__mount_dir, username))
         if not check_path_safe(__mount_dir, user_drive_mnt):
             app.logger.error("Invalid mount path for {}".format(username))
             return "Invalid mount path", 500
-        user_drive_data = os.path.join(__data_dir, username)
+        user_drive_data = os.path.normpath(os.path.join(__data_dir, username))
         if not check_path_safe(__data_dir, user_drive_data):
             app.logger.error("Invalid data path for {}".format(username))
             return "Invalid data path", 500
-        user_drive_cfg = os.path.join(user_drive_data, "seadrive.conf")
-        user_drive_data_folder = os.path.join(user_drive_data, "data")
+        user_drive_cfg = os.path.normpath(
+            os.path.join(user_drive_data, "seadrive.conf"))
+        user_drive_data_folder = os.path.normpath(
+            os.path.join(user_drive_data, "data"))
 
         # Do the mount (fuse)
         app.logger.info("Starting the mount for {} in {}".format(username, user_drive_mnt))
@@ -155,7 +159,7 @@ def unmount(username):
 
     # Unmount using fusermount
     app.logger.info("Unmounting for {} using fusermount".format(username))
-    user_drive_mnt = os.path.join(__mount_dir, username)
+    user_drive_mnt = os.path.normpath(os.path.join(__mount_dir, username))
     if not check_path_safe(__mount_dir, user_drive_mnt):
         app.logger.error("Invalid mount path for {}".format(username))
         return "Invalid mount path", 500
@@ -172,7 +176,7 @@ def unmount(username):
 
         # And delete everything (only caches anyway)
         # user_drive_mnt = os.path.join(__mount_dir, username)
-        user_drive_data = os.path.join(__data_dir, username)
+        user_drive_data = os.path.normpath(os.path.join(__data_dir, username))
         if not check_path_safe(__data_dir, user_drive_data):
             app.logger.error("Invalid data path for {}".format(username))
             return "Invalid data path", 500
