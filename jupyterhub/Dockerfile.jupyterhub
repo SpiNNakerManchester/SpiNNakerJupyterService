@@ -12,6 +12,7 @@ RUN python3 -m pip install --no-cache-dir \
     oauthenticator \
     git+https://github.com/g2nb/multiauthenticator.git \
     jupyterhub-nativeauthenticator \
-    jupyterhub-idle-culler
+    jupyterhub-idle-culler \
+    "git+https://github.com/rowleya/jupyterhub-access-token-service.git@update_to_latest"
 
 CMD ["jupyterhub", "-f", "/srv/jupyterhub/jupyterhub_config.py"]

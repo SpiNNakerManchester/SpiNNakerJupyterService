@@ -9,6 +9,11 @@ import sys
 # Spawn single-user servers as Docker containers
 c.JupyterHub.spawner_class = "dockerspawner.DockerSpawner"
 
+# Allow token in the URL to allow MCP server to work
+c.Spawner.environment = {
+    'JUPYTERHUB_ALLOW_TOKEN_IN_URL': '1'
+}
+
 # Spawn containers from this image
 c.DockerSpawner.image = os.environ["DOCKER_NOTEBOOK_IMAGE"]
 
@@ -56,11 +61,20 @@ async def pre_spawn(spawner):
         "mode": "rw"
     }
 
+    with open('/srv/jupyterhub/spinnaker2users') as spinn2userf:
+        spinn2users = {line.strip() for line in spinn2userf}
+    if username in spinn2users:
+        spawner.volumes["/localhome/jupyteruser/spinnaker2"] = {
+            "bind": "/etc/opt/spinnaker",
+            "mode": "rw"
+        }
+
     auth_state = await spawner.user.get_auth_state()
     if auth_state is None:
         spawner.log.info("No auth state found")
         return
     scope = auth_state.get("scope")
+    spawner.environment["OIDC_BEARER_TOKEN"] = auth_state['access_token']
     if scope is not None and 'collab.drive' in scope:
         client = AsyncHTTPClient()
         spawner.log.info("Mounting collab drive")
@@ -76,29 +90,29 @@ async def pre_spawn(spawner):
                 "propagation": "rshared"
             }
         })
-    if os.path.exists(f'/oldwork/{username}'):
-        spawner.log.info("Mounting old work");
-        spawner.volumes.update({
-            f'/localhome/jupyteruser/oldwork/{username}': {
-                "bind": "/home/jovyan/oldwork",
-                "mode": "ro",
-                "propagation": "rshared"
-            }
-        })
-    else:
-        spawner.log.info(f"Old work not found")
-
-    if os.path.exists(f'/oldjupyter/{username}'):
-        spawner.log.info("Mounting old jupyter")
-        spawner.volumes.update({
-            f'/localhome/jupyteruser/oldjupyter/{username}': {
-                "bind": "/home/jovyan/oldjupyter",
-                "mode": "ro",
-                "propagation": "rshared"
-            }
-        })
-    else:
-        spawner.log.info("Old jupyter not found")
+#    if os.path.exists(f'/oldwork/{username}'):
+#        spawner.log.info("Mounting old work");
+#        spawner.volumes.update({
+#            f'/localhome/jupyteruser/oldwork/{username}': {
+#                "bind": "/home/jovyan/oldwork",
+#                "mode": "ro",
+#                "propagation": "rshared"
+#            }
+#        })
+#    else:
+#        spawner.log.info(f"Old work not found")
+#
+#    if os.path.exists(f'/oldjupyter/{username}'):
+#        spawner.log.info("Mounting old jupyter")
+#        spawner.volumes.update({
+#            f'/localhome/jupyteruser/oldjupyter/{username}': {
+#                "bind": "/home/jovyan/oldjupyter",
+#                "mode": "ro",
+#                "propagation": "rshared"
+#            }
+#        })
+#    else:
+#        spawner.log.info("Old jupyter not found")
 
 async def post_stop(spawner):
     from tornado.httpclient import HTTPRequest, AsyncHTTPClient, HTTPClientError, HTTPClient
@@ -131,13 +145,14 @@ from oauthenticator.google import GoogleOAuthenticator
 
 # Use OAuth2
 c.JupyterHub.authenticator_class = "multiauthenticator.MultiAuthenticator"
+c.MultiAuthenticator.enable_auth_state = True
 c.MultiAuthenticator.authenticators = [(
     OAuthenticator, 
     "/ebrains", 
     {
         "oauth_callback_url": 'https://sands.cs.man.ac.uk/hub/ebrains/oauth_callback',
         "client_id": 'spinnaker-jupyter-ebrains',
-        "client_secret": '1fdaf78b-cb2e-4c3e-9f67-19dff013f937',
+        "client_secret": '33ggWh6IpHkorxrAsZ7pYqsrRH924xEp',
         "scope": ['openid', 'profile', 'clb.drive:read', 'clb.drive:write', 'collab.drive', 'email'],
         "token_url": 'https://iam.ebrains.eu/auth/realms/hbp/protocol/openid-connect/token',
         "userdata_url": 'https://iam.ebrains.eu/auth/realms/hbp/protocol/openid-connect/userinfo',
@@ -151,7 +166,7 @@ c.MultiAuthenticator.authenticators = [(
     {
         "oauth_callback_url": "https://sands.cs.man.ac.uk/hub/google/oauth_callback",
         "client_id": "180682199926-jkrhd2t9j6j00s4gvmmqa4q9eisum635.apps.googleusercontent.com",
-        "client_secret": "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",
+        "client_secret": "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",
         "service_name": 'Google',
         "login_service": "google",
         "enable_auth_state": True
@@ -180,7 +195,6 @@ admin = os.environ.get("JUPYTERHUB_ADMIN")
 if admin:
     c.Authenticator.admin_users = [admin]
 
-
 ################
 # Cull Service #
 ################
@@ -196,7 +210,7 @@ c.JupyterHub.load_roles = [
         ],
         # assignment of role's permissions to:
         "services": ["jupyterhub-idle-culler-service"],
-    }
+    },
 ]
 
 c.JupyterHub.services = [
@@ -223,3 +237,4 @@ c.JupyterHub.hub_ip = "jupyterhub"
 c.JupyterHub.hub_port = 8080
 
 c.JupyterHub.shutdown_on_logout = True
+c.JupyterHub.cleanup_servers = False

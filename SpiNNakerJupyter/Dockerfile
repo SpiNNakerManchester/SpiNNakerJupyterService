@@ -15,18 +15,74 @@ RUN ln -sf /usr/share/zoneinfo/Europe/London /etc/localtime
 
 # Set to noninteractive for install
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update --yes && \
-    apt-get install --yes \
-    gcc \
+RUN apt-get update --yes \
+    && apt-get install --yes \
     lsof \
     gcc-arm-none-eabi \
-    openjdk-17-jdk \
+    openjdk-21-jdk \
     maven \
     ffmpeg \
     curl \
     make \
-    vim  && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+    vim \
+    iputils-ping \
+    libvisa-dev \
+    gcc-14 \
+    g++-14 \
+    gfortran \
+    build-essential \
+    pkg-config \
+    clang-format \
+    software-properties-common \
+    locales \
+    vim \
+    tree \
+    graphviz \
+    git \
+    ninja-build \
+    cmake \
+    doxygen \
+    wget \
+    libomp-dev \
+    libopenmpi-dev \
+    libopenblas-dev \
+    libboost-all-dev \
+    libgtest-dev \
+    python3 \
+    python3-dev \
+    python3-pip \
+    python3-venv \
+    python3-wheel \
+    libnewlib-arm-none-eabi \
+    libftdi1 \
+    libftdi1-dev \
+    libfmt-dev \
+    liblz4-dev \
+    libavahi-common3 \
+    libavahi-client3 \
+    avahi-daemon \
+    iputils-ping \
+    net-tools \
+    iproute2 \
+    wget \
+    netcat-openbsd \
+    traceroute \
+    dnsutils \
+    && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 50 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 50 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# ------------------------------------------------------------
+# Digilent Adept Runtime
+# ------------------------------------------------------------
+RUN wget https://digilent.s3.us-west-2.amazonaws.com/Software/Adept2+Runtime/2.20.2/digilent.adept.runtime_2.20.2-x86_64.tar.gz \
+    && tar xf digilent.adept.runtime_2.20.2-x86_64.tar.gz \
+    && mkdir -p /usr/lib64/digilent/adept \
+    && cp -fd digilent.adept.runtime_2.20.2-x86_64/lib64/* /usr/lib64/digilent/adept/ \
+    && cp -f digilent.adept.runtime_2.20.2-x86_64/digilent-adept-libraries.conf /etc/ld.so.conf.d \
+    && chmod 644 /etc/ld.so.conf.d/digilent-adept-libraries.conf \
+    && rm -rf digilent.adept.runtime_2.20.2-x86_64* \
+    && ldconfig
 
 # Install nodejs
 ENV NODE_VERSION=16.13.0
@@ -87,6 +143,10 @@ RUN /opt/spinnaker/install_spinnaker.sh 7.4.1 2.3.4
 COPY --chmod=755 install_spinnaker_git.sh /opt/spinnaker/install_spinnaker_git.sh
 RUN /opt/spinnaker/install_spinnaker_git.sh
 
+# Install SpiNNaker 2
+COPY --chmod=755 install_spinnaker2.sh /opt/spinnaker/install_spinnaker2.sh
+RUN /opt/spinnaker/install_spinnaker2.sh
+
 # Install some Jupyter config files
 ADD --chown=${NB_UID}:${NB_GID} --chmod=755 spynnaker.cfg $HOME/.spynnaker.cfg
 ADD --chown=${NB_UID}:${NB_GID} --chmod=755 update_user.sh $HOME/.update_user.sh
@@ -100,6 +160,9 @@ ADD --chown=${NB_UID}:${NB_GID} --chmod=644 overrides.json $HOME/.jupyter/lab/us
 ADD --chown=${NB_UID}:${NB_GID} --chmod=755 jupyter_server_config.py $HOME/.jupyter/jupyter_server_config.py 
 
 # Copy examples
+RUN mkdir -p $HOME/00.SpiNNakerTutorials/
 ADD --chown=${NB_UID}:${NB_GID} SynfireExample.ipynb $HOME
-ADD --chown=${NB_UID}:${NB_GID} SpiNNakerJupyterExamples/01.RunningPyNNSimulations $HOME/01.RunningPyNNSimulations
-ADD --chown=${NB_UID}:${NB_GID} SpiNNakerJupyterExamples/02.LiveInputAndOutput $HOME/02.LiveInputAndOutput
+ADD --chown=${NB_UID}:${NB_GID} SynfireExample2.ipynb $HOME
+ADD --chown=${NB_UID}:${NB_GID} SpiNNakerJupyterExamples/01.RunningPyNNSimulations $HOME/00.SpiNNakerTutorials/01.RunningPyNNSimulations
+ADD --chown=${NB_UID}:${NB_GID} SpiNNakerJupyterExamples/02.LiveInputAndOutput $HOME/00.SpiNNakerTutorials/02.LiveInputAndOutput
+RUN ln -s py-spinnaker2/py-spinnaker2/tutorials/deep_dive $HOME/00.SpiNNaker2Tutorials
