@@ -8,3 +8,7 @@ jupyterlab-git
 # nbdime
 nbgitpuller
 # nbresuse
+jupyter-mcp-server
+jupyter-collaboration
+ipykernel
+pycrdt
